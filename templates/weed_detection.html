@@ -77,16 +77,15 @@
                             </div>
                         </div>
                         
-                        <div id="resultsContainer" style="display: none;">
-                            <div class="result-card p-4 rounded mb-3">
-                                <h4 class="text-center mb-4">🎯 AI Prediction</h4>
-                                <div class="text-center">
-                                    <div id="predictionLabel" class="display-6 fw-bold mb-2"></div>
-                                    <div id="confidenceScore" class="fs-5"></div>
-                                </div>
+                        <div id="resultsContainer" style="display: none; min-height: 200px;">
+                            <div class="text-center mb-4">
+                                <h4 class="text-success">🎯 AI Detection Results</h4>
                             </div>
-                            
-                            <div id="recommendationAlert"></div>
+                            <div class="text-center p-4" style="background: #f8f9fa; border-radius: 10px;">
+                                <div id="predictionLabel" class="mb-3" style="font-size: 2rem; font-weight: bold;"></div>
+                                <div id="confidenceScore" class="fs-4 text-muted"></div>
+                            </div>
+                            <div id="recommendationAlert" class="mt-3"></div>
                         </div>
                         
                         <div id="defaultContent">
@@ -152,144 +151,21 @@
 
 {% block extra_scripts %}
 <script>
+// Simple, robust weed detection upload handler
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Weed detection page loaded');
+    
     const form = document.getElementById('weedDetectionForm');
     const fileInput = document.getElementById('imageFile');
-    const captureBtn = document.getElementById('captureBtn');
-    const releaseBtn = document.getElementById('releaseBtn');
-    const cameraPreview = document.getElementById('cameraPreview');
-    const capturedImg = document.getElementById('capturedImg');
-    const loadingSpinner = document.getElementById('loadingSpinner');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const defaultContent = document.getElementById('defaultContent');
     
-    // Camera variables
-    let stream = null;
-    let video = null;
-    let canvas = null;
-    
-    // Initialize camera elements
-    function initializeCameraElements() {
-        if (!video) {
-            video = document.createElement('video');
-            video.width = 640;
-            video.height = 480;
-            video.autoplay = true;
-            video.style.width = '100%';
-            video.style.maxWidth = '640px';
-            video.style.border = '2px solid #ddd';
-            video.style.borderRadius = '8px';
-            video.style.display = 'block';
-            video.style.margin = '10px auto';
-        }
-        
-        if (!canvas) {
-            canvas = document.createElement('canvas');
-            canvas.style.display = 'none';
-        }
+    if (!form || !fileInput) {
+        console.error('Required elements not found');
+        return;
     }
     
-    // Camera capture functionality
-    captureBtn.addEventListener('click', async function() {
-        try {
-            initializeCameraElements();
-            
-            if (!stream) {
-                // Start camera
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                
-                // Add video to preview area
-                cameraPreview.innerHTML = '<p class="mt-2 text-muted">📷 Camera Active - Position your device to capture weeds</p>';
-                cameraPreview.appendChild(video);
-                cameraPreview.style.display = 'block';
-                
-                captureBtn.innerHTML = '<i class="fas fa-capture"></i> Take Photo';
-                releaseBtn.style.display = 'inline-block';
-                
-            } else {
-                // Capture photo
-                captureBtn.disabled = true;
-                captureBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-                
-                // Set canvas size to match video
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                // Draw video frame to canvas
-                const context = canvas.getContext('2d');
-                context.drawImage(video, 0, 0);
-                
-                // Convert to blob and send to server
-                canvas.toBlob(async function(blob) {
-                    const formData = new FormData();
-                    formData.append('image', blob, 'capture.jpg');
-                    
-                    // Show loading state
-                    defaultContent.style.display = 'none';
-                    resultsContainer.style.display = 'none';
-                    loadingSpinner.style.display = 'block';
-                    
-                    try {
-                        const response = await fetch('/api/weed-detection/camera', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const data = await response.json();
-                        loadingSpinner.style.display = 'none';
-                        captureBtn.disabled = false;
-                        captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capture & Analyze';
-                        
-                        if (data.success) {
-                            // Show captured image instead of video
-                            capturedImg.src = `data:image/jpeg;base64,${data.image}`;
-                            cameraPreview.innerHTML = '<p class="mt-2 text-muted">📷 Captured Image Analysis</p>';
-                            cameraPreview.appendChild(capturedImg);
-                            cameraPreview.style.display = 'block';
-                            
-                            // Display results
-                            displayResults(data.label, data.confidence);
-                        } else {
-                            alert('Analysis Error: ' + data.error);
-                            defaultContent.style.display = 'block';
-                        }
-                    } catch (error) {
-                        loadingSpinner.style.display = 'none';
-                        captureBtn.disabled = false;
-                        captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capture & Analyze';
-                        alert('Error analyzing image: ' + error.message);
-                        defaultContent.style.display = 'block';
-                    }
-                }, 'image/jpeg');
-            }
-        } catch (error) {
-            alert('Camera Error: ' + error.message);
-            console.error('Camera error:', error);
-            defaultContent.style.display = 'block';
-            alert('Error capturing image: ' + error.message);
-        });
-    });
-    
-    // Release camera
-    releaseBtn.addEventListener('click', function() {
-        // Stop browser camera stream
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-        }
-        
-        // Reset UI
-        releaseBtn.style.display = 'none';
-        cameraPreview.style.display = 'none';
-        captureBtn.innerHTML = '<i class="fas fa-camera"></i> Capture & Analyze';
-        resultsContainer.style.display = 'none';
-        defaultContent.style.display = 'block';
-        });
-    });
-    
-    // Handle file upload
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        console.log('Form submitted');
         
         const file = fileInput.files[0];
         if (!file) {
@@ -297,66 +173,127 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        console.log('File selected:', file.name);
+        
+        // Show loading immediately
+        showLoading();
+        
         const formData = new FormData();
         formData.append('file', file);
         
-        // Show loading state
-        defaultContent.style.display = 'none';
-        resultsContainer.style.display = 'none';
-        loadingSpinner.style.display = 'block';
+        console.log('Sending request to API...');
         
         fetch('/api/weed-detection', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Got response:', response.status);
+            return response.json();
+        })
         .then(data => {
-            loadingSpinner.style.display = 'none';
+            console.log('API returned:', data);
             
             if (data.success) {
-                displayResults(data.label, data.confidence);
+                showResults(data.label, data.confidence);
             } else {
                 alert('Error: ' + data.error);
-                defaultContent.style.display = 'block';
+                showDefault();
             }
         })
         .catch(error => {
-            loadingSpinner.style.display = 'none';
-            defaultContent.style.display = 'block';
+            console.error('Request failed:', error);
             alert('Error analyzing image: ' + error.message);
+            showDefault();
         });
     });
     
-    // Function to display results
-    function displayResults(label, confidence) {
+    function showLoading() {
+        console.log('Showing loading state');
+        const defaultContent = document.getElementById('defaultContent');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        
+        if (defaultContent) defaultContent.style.display = 'none';
+        if (resultsContainer) resultsContainer.style.display = 'none';
+        if (loadingSpinner) loadingSpinner.style.display = 'block';
+    }
+    
+    function showDefault() {
+        console.log('Showing default state');
+        const defaultContent = document.getElementById('defaultContent');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        
+        if (loadingSpinner) loadingSpinner.style.display = 'none';
+        if (resultsContainer) resultsContainer.style.display = 'none';
+        if (defaultContent) defaultContent.style.display = 'block';
+    }
+    
+    function showResults(label, confidence) {
+        console.log('Showing results:', label, confidence);
+        
+        // Hide other sections
+        const defaultContent = document.getElementById('defaultContent');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const resultsContainer = document.getElementById('resultsContainer');
+        
+        if (defaultContent) defaultContent.style.display = 'none';
+        if (loadingSpinner) loadingSpinner.style.display = 'none';
+        
+        // Get result elements
         const predictionLabel = document.getElementById('predictionLabel');
         const confidenceScore = document.getElementById('confidenceScore');
         const recommendationAlert = document.getElementById('recommendationAlert');
         
+        if (!predictionLabel || !confidenceScore || !recommendationAlert || !resultsContainer) {
+            console.error('Result elements not found!');
+            alert(`Results:\nLabel: ${label.toUpperCase()}\nConfidence: ${(confidence * 100).toFixed(1)}%`);
+            return;
+        }
+        
+        // Set the content
         predictionLabel.textContent = label.toUpperCase();
         confidenceScore.innerHTML = `Confidence: <strong>${(confidence * 100).toFixed(1)}%</strong>`;
         
-        // Set colors based on prediction
+        // Color coding
         const isWeed = label.toLowerCase() === 'weed';
-        const color = isWeed ? '#FF9800' : '#4CAF50';
-        predictionLabel.style.color = color;
+        predictionLabel.style.color = isWeed ? '#FF6B35' : '#4CAF50';
+        predictionLabel.style.fontSize = '2.5rem';
+        predictionLabel.style.fontWeight = 'bold';
         
         // Show recommendation
         if (isWeed) {
             recommendationAlert.innerHTML = `
-                <div class="alert alert-warning">
-                    ⚠️ <strong>Weeds Detected!</strong> Consider implementing weed control measures.
+                <div class="alert alert-warning mt-3">
+                    ⚠️ <strong>Weeds Detected!</strong> Consider weed control measures.
                 </div>
             `;
         } else {
             recommendationAlert.innerHTML = `
-                <div class="alert alert-success">
-                    ✅ <strong>Healthy Crops Detected!</strong> Your field looks good.
+                <div class="alert alert-success mt-3">
+                    ✅ <strong>Healthy Crops!</strong> Your field looks good.
                 </div>
             `;
         }
         
+        // Show results with strong styling
         resultsContainer.style.display = 'block';
+        resultsContainer.style.visibility = 'visible';
+        resultsContainer.style.opacity = '1';
+        resultsContainer.style.backgroundColor = '#ffffff';
+        resultsContainer.style.border = '3px solid #28a745';
+        resultsContainer.style.borderRadius = '15px';
+        resultsContainer.style.padding = '25px';
+        resultsContainer.style.marginTop = '20px';
+        resultsContainer.style.boxShadow = '0 4px 15px rgba(40, 167, 69, 0.3)';
+        
+        console.log('Results displayed successfully');
+        
+        // Scroll to results
+        setTimeout(() => {
+            resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
     }
 });
 </script>

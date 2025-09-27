@@ -8,7 +8,7 @@ import scripts.disease_detection as disease
 import scripts.gps_simulation as gps
 import scripts.obstacle_avoidance as avoid
 import scripts.soil_monitor as soil
-import scripts.camera_capture as camera
+# import scripts.camera_capture as camera  # Disabled for now
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
@@ -58,24 +58,20 @@ def api_weed_detection():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            
-            # Run weed detection
-            result = weed.run_demo(filepath)
-            
-            # Clean up uploaded file
-            os.remove(filepath)
-            
-            return jsonify({
-                'success': True,
-                'label': result['label'],
-                'confidence': result['prob']
-            })
-        else:
-            return jsonify({'error': 'Invalid file type'}), 400
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type. Please upload JPG, PNG, or GIF.'}), 400
+        
+        # Convert directly to PIL Image without saving to disk
+        image = Image.open(file.stream).convert('RGB')
+        
+        # Run weed detection directly on PIL image
+        result = weed.predict_pil(image)
+        
+        return jsonify({
+            'success': True,
+            'label': result['label'],
+            'confidence': result['prob']
+        })
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -88,16 +84,28 @@ def api_weed_detection_camera():
         
         image_file = request.files['image']
         
-        result, message = camera.process_weed_detection(image_file)
+        # Simple image processing without camera module
+        from PIL import Image
+        import io
+        import base64
         
-        if result is None:
-            return jsonify({'error': message}), 500
+        # Convert uploaded file to PIL Image
+        image_data = image_file.read()
+        pil_image = Image.open(io.BytesIO(image_data)).convert('RGB')
+        
+        # Run weed detection
+        result = weed.predict_pil(pil_image)
+        
+        # Convert image to base64 for display
+        buffer = io.BytesIO()
+        pil_image.save(buffer, format='JPEG')
+        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         
         return jsonify({
             'success': True,
-            'label': result['analysis']['label'],
-            'confidence': result['analysis']['prob'],
-            'image': result['image']
+            'label': result['label'],
+            'confidence': result['prob'],
+            'image': img_base64
         })
         
     except Exception as e:
@@ -113,24 +121,20 @@ def api_disease_detection():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            
-            # Run disease detection
-            result = disease.run_demo(filepath)
-            
-            # Clean up uploaded file
-            os.remove(filepath)
-            
-            return jsonify({
-                'success': True,
-                'label': result['label'],
-                'confidence': result['prob']
-            })
-        else:
-            return jsonify({'error': 'Invalid file type'}), 400
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type. Please upload JPG, PNG, or GIF.'}), 400
+        
+        # Convert directly to PIL Image without saving to disk
+        image = Image.open(file.stream).convert('RGB')
+        
+        # Run disease detection directly on PIL image
+        result = disease.predict_pil(image)
+        
+        return jsonify({
+            'success': True,
+            'label': result['label'],
+            'confidence': result['prob']
+        })
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -143,16 +147,28 @@ def api_disease_detection_camera():
         
         image_file = request.files['image']
         
-        result, message = camera.process_disease_detection(image_file)
+        # Simple image processing without camera module
+        from PIL import Image
+        import io
+        import base64
         
-        if result is None:
-            return jsonify({'error': message}), 500
+        # Convert uploaded file to PIL Image
+        image_data = image_file.read()
+        pil_image = Image.open(io.BytesIO(image_data)).convert('RGB')
+        
+        # Run disease detection
+        result = disease.predict_pil(pil_image)
+        
+        # Convert image to base64 for display
+        buffer = io.BytesIO()
+        pil_image.save(buffer, format='JPEG')
+        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         
         return jsonify({
             'success': True,
-            'label': result['analysis']['label'],
-            'confidence': result['analysis']['prob'],
-            'image': result['image']
+            'label': result['label'],
+            'confidence': result['prob'],
+            'image': img_base64
         })
         
     except Exception as e:
@@ -264,7 +280,7 @@ def api_soil_monitoring():
 @app.route('/api/camera/release', methods=['POST'])
 def api_camera_release():
     try:
-        camera.release_camera()
+        # Simplified camera release - just return success
         return jsonify({'success': True, 'message': 'Camera released successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

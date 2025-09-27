@@ -6,7 +6,6 @@ import os
 import io
 
 from scripts.utils import get_transform, DEVICE, softmax_probs
-import scripts.weed_detection as weed  # ✅ Added for rice verification
 
 # Model path and labels
 MODEL_PATH = 'models/disease_detection.pt'
@@ -50,18 +49,13 @@ def predict_pil(img_pil):
     return {'label': LABELS[cls], 'prob': float(probs[0, cls])}
 
 # Main demo function for dashboard
-def run_demo(uploaded_file=None):
+def run_demo(uploaded_file):
     """
-    Accepts a Streamlit uploaded file object, file path, or raw bytes.
-    Returns prediction result as a dictionary.
+    Main function to process an uploaded file and return disease prediction results.
     """
-    if uploaded_file is None:
-        return "Upload a leaf image to detect the rice disease."
-
     try:
-        # Load image from various input types
-        if hasattr(uploaded_file, "read"):
-            uploaded_file.seek(0)
+        # Handle different input types
+        if hasattr(uploaded_file, 'read'):  # File-like object
             img = Image.open(uploaded_file).convert("RGB")
         elif isinstance(uploaded_file, str) and os.path.exists(uploaded_file):
             img = Image.open(uploaded_file).convert("RGB")
@@ -69,15 +63,6 @@ def run_demo(uploaded_file=None):
             img = Image.open(io.BytesIO(uploaded_file)).convert("RGB")
         else:
             raise ValueError("Unsupported input type for uploaded_file.")
-
-        # ✅ Pre-check: Is this a rice plant?
-        weed_result = weed.predict_pil(img)
-        if weed_result['label'].lower() != 'rice':  # or 'crop' if not renamed
-            return {
-                'label': 'Not rice',
-                'prob': 0.0,
-                'message': "This image does not appear to be a rice plant. Please upload a valid rice leaf image."
-            }
 
         # Proceed with disease prediction
         return predict_pil(img)

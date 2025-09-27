@@ -12,7 +12,7 @@ LABELS = ['rice', 'weed']
 
 # Load and prepare the model
 def load_model():
-    model = models.mobilenet_v2(pretrained=False)
+    model = models.mobilenet_v2(weights=None)  # Updated syntax
     num_ftrs = model.classifier[1].in_features
     model.classifier[1] = torch.nn.Linear(num_ftrs, 2)  # 2 classes: crop and weed
     model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
